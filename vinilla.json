@@ -1,0 +1,9 @@
+{
+    "name": "QueryBuilder",
+    "vendor": "CodingLiki",
+    "description": "Simple sql query builder",
+    "repo_url": "https://github.com/coding-liki/QueryBuilder.git",
+    "depends_on": [
+        "CodingLiki/OoAutoloader"
+    ]
+}
