@@ -3,6 +3,7 @@
     "vendor": "CodingLiki",
     "description": "Simple sql query builder",
     "repo_url": "https://github.com/coding-liki/QueryBuilder.git",
+    "version": "0.1",
     "depends_on": [
         "CodingLiki/OoAutoloader"
     ]
