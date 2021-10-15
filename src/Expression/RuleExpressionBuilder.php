@@ -22,6 +22,24 @@ class RuleExpressionBuilder
             ->setChildrenParams('operands', separator: " $operation ", voidName: true);
     }
 
+    public static function isNull(string|Expression $left): Expression
+    {
+        $left instanceof Expression ?: $left = new Expression($left);
+
+        return $left
+            ->addChildren('IS', new Expression('NULL'))
+            ->setChildrenParams('IS', prefix:' ', nameSeparator:' ');
+    }
+
+    public static function isNotNull(string|Expression $left): Expression
+    {
+        $left instanceof Expression ?: $left = new Expression($left);
+
+        return $left
+            ->addChildren('IS', new Expression('NOT NULL'))
+            ->setChildrenParams('IS', prefix:' ', nameSeparator:' ');
+    }
+
     public static function equal(string|Expression $left, string|Expression $right): Expression
     {
         return self::rule($left, $right, '=');
@@ -71,14 +89,15 @@ class RuleExpressionBuilder
             ->setChildrenParams('IN', nameSeparator: '(', postfix: ')');
     }
 
-    public static function like(string|Expression $left, string|Expression $like): Expression
+    public static function like(string|Expression $left, string|Expression $like, bool $caseInsensitive = false): Expression
     {
         $left instanceof Expression ?: $left = new Expression($left);
         $like instanceof Expression ?: $like = new Expression($like);
 
+        $operator = $caseInsensitive ? 'ILIKE' : 'LIKE';
         return $left
-            ->addChildren('LIKE', $like)
-            ->setChildrenParams('LIKE', prefix: ' ',nameSeparator: ' ');
+            ->addChildren($operator, $like)
+            ->setChildrenParams($operator, prefix: ' ',nameSeparator: ' ');
     }
 
     public static function between(string|Expression $left, string|Expression $start, string|Expression $end): Expression
@@ -99,6 +118,15 @@ class RuleExpressionBuilder
         return (new Expression(''))
             ->addChildren('NOT', $expression)
             ->setChildrenParams('NOT', nameSeparator: ' ');
+    }
+
+    public static function orderBy(string|Expression $expression, string $order): Expression
+    {
+        $expression instanceof Expression ?: $expression = new Expression($expression);
+
+        return $expression
+            ->addChildren('order', new Expression($order))
+            ->setChildrenParams('order', prefix: ' ', voidName: true);
     }
 }
 

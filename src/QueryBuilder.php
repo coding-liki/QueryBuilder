@@ -13,7 +13,6 @@ class QueryBuilder
     public const JOIN = '';
 
     public const EXPRESSIONS_ORDER = [
-        'LEFT_BORDER',
         'selectFields',
         'FROM',
         'UPDATE',
@@ -27,10 +26,11 @@ class QueryBuilder
         'WHERE',
         'OR',
         'GROUP BY',
+        'HAVING',
+        'ORHAVING',
         'ORDER BY',
         'LIMIT',
         'OFFSET',
-        'RIGHT_BORDER',
     ];
 
     private const DEFAULT_BORDERS = [
@@ -47,7 +47,7 @@ class QueryBuilder
         $name = $distinct ? 'SELECT DISTINCT' : 'SELECT';
 
         $this->rootExpression = (new Expression($name, childrenPrefix: ' '))
-            ->setChildrenParams('selectFields', separator: ', ', voidName: true);
+            ->setChildrenParams('selectFields', separator: ', ', postfix: ' ', voidName: true);
 
         if (!is_array($selectFields)) {
             $selectFields = [$selectFields];
@@ -135,6 +135,13 @@ class QueryBuilder
         return $this;
     }
 
+    public function delete(): static
+    {
+        $this->rootExpression = new Expression('DELETE', childrenPrefix: ' ');
+
+        return $this;
+    }
+
     public function getAsSubquery(?array $borders = null): Expression
     {
         if ($borders === null || count($borders) !== 2) {
@@ -166,6 +173,27 @@ class QueryBuilder
         return $this;
     }
 
+    public function having(array $where): static
+    {
+        $whereExpressions = [];
+        foreach ($where as $field => $rule) {
+            if ($rule instanceof Expression) {
+                $whereExpressions[] = $rule;
+            } else {
+                $rule = new Expression($rule, '');
+                $whereExpressions[] = (new Expression($field))
+                    ->addChildren('rule', $rule)
+                    ->setChildrenParams('rule', prefix: ' ', voidName: true);
+            }
+        }
+
+        $this->rootExpression
+            ->addChildren('HAVING', $whereExpressions)
+            ->setChildrenParams('HAVING', separator: ' AND ', prefix: ' ', nameSeparator: ' ');
+
+        return $this;
+    }
+
     public function orWhere(array $where): static
     {
         $whereExpressions = [];
@@ -183,6 +211,27 @@ class QueryBuilder
         $this->rootExpression
             ->addChildren('OR', $whereExpressions)
             ->setChildrenParams('OR', separator: ' OR ', prefix: ' ', nameSeparator: ' ');
+
+        return $this;
+    }
+
+    public function orHaving(array $where): static
+    {
+        $whereExpressions = [];
+        foreach ($where as $field => $rule) {
+            if ($rule instanceof Expression) {
+                $whereExpressions[] = $rule;
+            } else {
+                $rule = new Expression($rule, '');
+                $whereExpressions[] = (new Expression($field))
+                    ->addChildren('rule', $rule)
+                    ->setChildrenParams('rule', prefix: ' ', voidName: true);
+            }
+        }
+
+        $this->rootExpression
+            ->addChildren('ORHAVING', $whereExpressions)
+            ->setChildrenParams('ORHAVING', separator: ' OR ', prefix: ' OR', nameSeparator: ' ', voidName: true);
 
         return $this;
     }
@@ -206,7 +255,7 @@ class QueryBuilder
 
         $this->rootExpression
             ->addChildren('FROM', $fromExpressions)
-            ->setChildrenParams('FROM', separator: ', ', prefix: ' ', nameSeparator: ' ');
+            ->setChildrenParams('FROM', separator: ', ', nameSeparator: ' ');
 
         return $this;
     }
@@ -230,6 +279,47 @@ class QueryBuilder
             ->setChildrenParams('OFFSET', prefix: ' ', nameSeparator: ' ');
 
         return $this;
+    }
+
+    /**
+     * @param array<string, Expression|string> $orderBy
+     */
+    public function orderBy(array $orderBy): static
+    {
+        $orderExpressions = []; 
+        foreach($orderBy as $name => $orderItem){
+            if($orderItem instanceof Expression){
+                $orderExpressions[] = $orderItem;
+            } else {
+                $orderExpressions[] = (new Expression($name, childrenPrefix: ' '))
+                    ->addChildren('order', new Expression($orderItem))
+                    ->setChildrenParams('order', voidName: true);
+            }
+        }
+
+        $this->rootExpression
+            ->addChildren('ORDER BY', $orderExpressions)
+            ->setChildrenParams('ORDER BY', separator: ', ', nameSeparator: ' ',prefix: ' ');
+
+        return $this;        
+    }
+
+    /**
+     * @param array<string, Expression|string> $orderBy
+     */
+    public function groupBy(array $groupBy): static
+    {
+        $groupExpressions = []; 
+        foreach($groupBy as $groupItem){
+            $groupItem instanceof Expression ?: $groupItem = new Expression($groupItem);
+            $groupExpressions[] = $groupItem;
+        }
+
+        $this->rootExpression
+            ->addChildren('GROUP BY', $groupExpressions)
+            ->setChildrenParams('GROUP BY', separator: ', ', nameSeparator: ' ',prefix: ' ');
+
+        return $this;        
     }
 
     public function join(string|Expression $table, ?string $alias, array $onRules, string $type = self::JOIN): static
@@ -264,11 +354,13 @@ class QueryBuilder
                     $rule = $rule[1];
                 }
             }
-
-            $onExpression = (new Expression($field, childrenPrefix: ' '))
-                ->addChildren('rule', $rule instanceof Expression ? $rule : new Expression($rule))
-                ->setChildrenParams('rule', voidName: true);
-
+            if(is_string($field)){
+                $onExpression = (new Expression($field, childrenPrefix: ' '))
+                    ->addChildren('rule', $rule instanceof Expression ? $rule : new Expression($rule))
+                    ->setChildrenParams('rule', voidName: true);
+            } else {
+                $onExpression =  $rule instanceof Expression ? $rule : new Expression($rule);
+            }
             switch ($childGroup) {
                 case 'ON':
                     $onExpressions[] = $onExpression;
